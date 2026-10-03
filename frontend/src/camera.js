@@ -10,7 +10,9 @@ const CHECK_MS = 200;
 const MIN_GAP_MS = 600;
 const STEADY = 7;
 const CHANGED = 10;
-const LIVE_MAX_SIDE = 1024; // live frames: box only, JPEG 0.80
+const CHANGED_WHILE_PLAYING = 22; // while speaking, a shaky hand must not restart it
+const BIG_MOTION = 40; // frame-to-frame: hand tremor 19-31, swapping a label / turning away 53-64
+const LIVE_MAX_SIDE = 768; // live frames: box only, JPEG 0.80 (one Gemini tile: ~2x faster OCR)
 const PHOTO_MAX_SIDE = 1280; // shutter/gallery photos: JPEG 0.85
 
 /**
@@ -64,13 +66,15 @@ export async function prepareFile(file) {
  * content is steady AND different from the last frame sent, send a JPEG of the box only.
  */
 export class LiveAnalyzer {
-  constructor({ enabled, busy, onFrame }) {
+  constructor({ enabled, busy, playing = () => false, onFrame }) {
     this.enabled = enabled;
     this.busy = busy;
+    this.playing = playing;
     this.onFrame = onFrame;
     this.previous = null;
     this.sent = null;
     this.lastScan = 0;
+    this.motionPeak = 0; // biggest frame-to-frame movement since the last frame sent
     this.timer = null;
     this.sigCanvas = document.createElement("canvas");
     this.sigCanvas.width = SIG_W;
@@ -98,14 +102,19 @@ export class LiveAnalyzer {
     if (!region) return;
 
     const signature = this.signature(video, region);
-    const steady = diff(signature, this.previous) < STEADY;
+    const movement = diff(signature, this.previous);
+    if (this.previous) this.motionPeak = Math.max(this.motionPeak, movement);
+    const steady = movement < STEADY;
     this.previous = signature;
-    const changed = diff(signature, this.sent) > CHANGED;
+    // A swapped label can look alike to this small signature, but swapping it needs big movement.
+    const changed =
+      diff(signature, this.sent) > (this.playing() ? CHANGED_WHILE_PLAYING : CHANGED) || this.motionPeak > BIG_MOTION;
     const now = performance.now();
     if (!steady || !changed || this.busy() || now - this.lastScan < MIN_GAP_MS) return;
 
     this.sent = signature;
     this.lastScan = now;
+    this.motionPeak = 0;
     const blob = await toJpeg(drawRegion(video, region, LIVE_MAX_SIDE), 0.8);
     if (blob) this.onFrame(blob);
   }
@@ -127,18 +136,44 @@ function diff(a, b) {
   return sum / a.length;
 }
 
-/** Same label as before? (identical to sameLabel() in GramViewModel.kt) */
-export function sameLabel(sentence, previous) {
-  const a = sentence.replace(/\s+/g, " ").trim().slice(0, 120);
-  const b = previous.replace(/\s+/g, " ").trim().slice(0, a.length + 4);
-  if (!a || !b) return false;
-  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [i];
-    for (let j = 1; j <= b.length; j++) {
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+const NOT_WORD = /[^\p{L}\p{M}\p{N}]+/u; // \p{M} keeps Devanagari matras
+
+const words = (text) => text.toLowerCase().split(NOT_WORD).filter(Boolean);
+
+/** Equal, or one character inserted/removed/changed (only for words of 4+ characters). */
+function nearlyEqual(a, b) {
+  if (a === b) return true;
+  if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
     }
-    prev = cur;
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else {
+      i++;
+      j++;
+    }
   }
-  return prev[b.length] <= Math.max(2, Math.round(a.length * 0.2));
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+/**
+ * Same label as before? (identical to sameLabel() in LabelMatch.kt) Two camera frames of one
+ * label rarely give identical OCR, so compare WORDS: same label when at least 60% of the new
+ * words also appear (exactly or nearly) in the previous reading.
+ */
+export function sameLabel(text, previous) {
+  const fresh = words(text);
+  const old = words(previous);
+  if (!fresh.length || !old.length) return false;
+  const oldSet = new Set(old);
+  const matched = fresh.filter((w) => oldSet.has(w) || old.some((o) => nearlyEqual(w, o))).length;
+  return matched >= 0.6 * fresh.length;
 }

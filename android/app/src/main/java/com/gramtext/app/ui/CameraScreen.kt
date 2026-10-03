@@ -142,11 +142,13 @@ fun CameraScreen(
     }
     val live by rememberUpdatedState(liveMode)
     val busyCheck by rememberUpdatedState(liveBusy)
+    val playingNow by rememberUpdatedState(playing)
     val frameHandler by rememberUpdatedState(onLiveFrame)
     val analyzer = remember {
         LiveAnalyzer(
             enabled = { live },
             busy = { busyCheck() },
+            playing = { playingNow },
             onFrame = { frameHandler(it) },
             // Debug builds keep the last frame sent, to check the box crop with adb.
             debugFrame = if (BuildConfig.DEBUG) { jpeg -> File(context.cacheDir, "last_live_frame.jpg").writeBytes(jpeg) } else null,

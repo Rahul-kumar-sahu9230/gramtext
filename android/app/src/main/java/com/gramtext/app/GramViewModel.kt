@@ -229,7 +229,8 @@ class GramViewModel(app: Application) : AndroidViewModel(app) {
                         }
                         "audio" -> {
                             if (!decided) {
-                                if (sameLabel(ev.optString("text"), lastSpoken)) {
+                                // Compare all text read so far, not just the first sentence.
+                                if (sameLabel(latest.ifBlank { ev.optString("text") }, lastSpoken)) {
                                     skip = true
                                     return@collect
                                 }
@@ -244,6 +245,7 @@ class GramViewModel(app: Application) : AndroidViewModel(app) {
                             val text = ev.optString("text").trim()
                             if (text.isEmpty()) {
                                 lastSpoken = "" // label taken away: showing it again reads it again
+                                stopAudio() // camera turned to something without text: stop the old label
                             } else if (decided) {
                                 lastSpoken = text
                                 player.endStream(text)
@@ -395,22 +397,5 @@ class GramViewModel(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         player.clear()
     }
-}
-
-/** Same label as before? OCR of two camera frames can differ by a character or two. */
-internal fun sameLabel(sentence: String, previous: String): Boolean {
-    val a = sentence.replace(Regex("""\s+"""), " ").trim().take(120)
-    val b = previous.replace(Regex("""\s+"""), " ").trim().take(a.length + 4)
-    if (a.isEmpty() || b.isEmpty()) return false
-    var prev = IntArray(b.length + 1) { it }
-    for (i in 1..a.length) {
-        val cur = IntArray(b.length + 1)
-        cur[0] = i
-        for (j in 1..b.length) {
-            cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1)
-        }
-        prev = cur
-    }
-    return prev[b.length] <= maxOf(2, Math.round(a.length * 0.2f))
 }
 

@@ -14,13 +14,18 @@ import kotlin.math.max
  * held steady inside it:
  *  - every 0.2 s it makes a 32x24 grayscale "signature" of the box area,
  *  - steady  = the box content barely changed since the last check (camera not moving),
- *  - changed = it differs from the last frame that was sent (a new label),
- *  - never while a previous frame is still being read, never more than once per 0.6 s.
+ *  - changed = it differs from the last frame that was sent (a new label), OR the view moved a
+ *    lot since then (label swapped, camera turned to something else) and has now settled -
+ *    two paper labels can look alike to this small signature, but swapping them never happens
+ *    without big movement, while a shaky hand only moves a little,
+ *  - never while a previous frame is still being read, never more than once per 0.6 s,
+ *  - while speech is playing only a big change counts, so a shaky hand does not restart it.
  * Movement or text outside the box is ignored and never sent.
  */
 class LiveAnalyzer(
     private val enabled: () -> Boolean,
     private val busy: () -> Boolean,
+    private val playing: () -> Boolean = { false },
     private val onFrame: (ByteArray) -> Unit,
     private val debugFrame: ((ByteArray) -> Unit)? = null,
 ) : ImageAnalysis.Analyzer {
@@ -28,6 +33,7 @@ class LiveAnalyzer(
     private var sent: FloatArray? = null
     private var lastCheck = 0L
     private var lastScan = 0L
+    private var motionPeak = 0f // biggest frame-to-frame movement since the last frame sent
 
     override fun analyze(image: ImageProxy) {
         try {
@@ -36,13 +42,17 @@ class LiveAnalyzer(
             lastCheck = now
 
             val signature = signature(image)
-            val steady = diff(signature, previous) < STEADY
+            val movement = diff(signature, previous)
+            if (previous != null) motionPeak = maxOf(motionPeak, movement)
+            val steady = movement < STEADY
             previous = signature
-            val changed = diff(signature, sent) > CHANGED
+            val changed = diff(signature, sent) > (if (playing()) CHANGED_WHILE_PLAYING else CHANGED) ||
+                motionPeak > BIG_MOTION
             if (!steady || !changed || busy() || now - lastScan < MIN_GAP_MS) return
 
             sent = signature
             lastScan = now
+            motionPeak = 0f
             val jpeg = boxJpeg(image)
             debugFrame?.invoke(jpeg)
             onFrame(jpeg)
@@ -87,7 +97,7 @@ class LiveAnalyzer(
         return sum / a.size
     }
 
-    /** Visible area (viewport) -> upright -> scan box only -> JPEG, at most 1024 px. */
+    /** Visible area (viewport) -> upright -> scan box only -> JPEG, at most 768 px. */
     private fun boxJpeg(image: ImageProxy): ByteArray {
         val full = image.toBitmap()
         val crop = image.cropRect
@@ -113,6 +123,11 @@ class LiveAnalyzer(
         const val MIN_GAP_MS = 600L
         const val STEADY = 7f
         const val CHANGED = 10f
-        const val MAX_SIDE = 1024
+        const val CHANGED_WHILE_PLAYING = 22f
+        // Frame-to-frame movement: hand tremor measured 19-31, swapping a label or turning away 53-64.
+        const val BIG_MOTION = 40f
+        // Gemini reads a <=768 px image as one tile: OCR took ~0.8 s instead of ~1.5 s at 1024 px,
+        // with the same accuracy on small print.
+        const val MAX_SIDE = 768
     }
 }

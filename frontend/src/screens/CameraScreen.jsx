@@ -62,6 +62,8 @@ export default function CameraScreen({
   const analyzer = useRef(null);
   const busyRef = useRef(liveBusy);
   busyRef.current = liveBusy;
+  const playingRef = useRef(state.playing);
+  playingRef.current = state.playing;
   const frameRef = useRef(onLiveFrame);
   frameRef.current = onLiveFrame;
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function CameraScreen({
     analyzer.current = new LiveAnalyzer({
       enabled: () => live.current,
       busy: () => busyRef.current(),
+      playing: () => playingRef.current,
       onFrame: (blob) => frameRef.current(blob),
     });
     analyzer.current.start(videoRef.current, () => sizeRef.current);

@@ -202,7 +202,8 @@ export default function App() {
             if (decided) update({ liveText: latest });
           } else if (ev.type === "audio") {
             if (!decided) {
-              if (sameLabel(ev.text, lastSpoken.current)) {
+              // Compare all text read so far, not just the first sentence.
+              if (sameLabel(latest || ev.text, lastSpoken.current)) {
                 skip = true;
                 return;
               }
@@ -215,6 +216,7 @@ export default function App() {
             const text = (ev.text || "").trim();
             if (!text) {
               lastSpoken.current = ""; // label taken away: showing it again reads it again
+              stopAudio(); // camera turned to something without text: stop the old label
             } else if (decided) {
               lastSpoken.current = text;
               player.current.endStream(text);
@@ -237,7 +239,7 @@ export default function App() {
         }
       }
     },
-    [say, update]
+    [say, stopAudio, update]
   );
 
   /**

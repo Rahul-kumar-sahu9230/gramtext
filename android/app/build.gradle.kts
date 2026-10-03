@@ -12,8 +12,8 @@ android {
         applicationId = "com.gramtext.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
         // Default backend: the Render deployment https://gramtext.onrender.com (Render service "gramtext").
         // Local testing against the laptop:  gradlew assembleDebug -PapiBaseUrl=http://<laptop-IP>:8000
         // It can also be changed inside the app (Settings -> Server address) without a rebuild.
@@ -64,4 +64,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

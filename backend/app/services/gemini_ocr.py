@@ -9,10 +9,19 @@ from PIL import Image
 from app.config import GEMINI_API_KEY, GEMINI_FALLBACK_MODELS, GEMINI_MODEL, GEMINI_THINKING
 from app.errors import ServiceError
 
-OCR_PROMPT = """You are an OCR engine. Extract the visible text from the image.
-Rules: copy the text exactly; keep Devanagari matras and conjuncts precise; keep line breaks;
-include both Hindi and English; do not translate, summarize, describe or invent anything;
-return ONLY the text (no quotes, no markdown). If there is no readable text, return exactly:
+# The text is read aloud, so it must come out in reading order and in whole lines.
+# Live camera frames shift a little; skipping cut-off words keeps two frames of one label alike.
+OCR_PROMPT = """You are an OCR engine. Extract the visible text from the image so it can be read aloud.
+Rules:
+1. Copy the words exactly; keep Devanagari matras and conjuncts precise; include both Hindi and English.
+2. Natural reading order: top to bottom, and left to right within a line.
+3. Skip words or letters that are cut off at the edge of the image, and stray fragments that are
+   not part of the main text.
+4. Put each heading, item or sentence on its own line. A sentence that continues on the next
+   line must be joined into one line: "दवा दिन में दो बार" + "भोजन के बाद लें।" ->
+   "दवा दिन में दो बार भोजन के बाद लें।". Keep separate items (name, dose, heading) on separate lines.
+5. Do not translate, summarize, describe or invent anything.
+Return ONLY the text (no quotes, no markdown). If there is no readable text, return exactly:
 NO_READABLE_TEXT"""
 
 NO_TEXT = "NO_READABLE_TEXT"
