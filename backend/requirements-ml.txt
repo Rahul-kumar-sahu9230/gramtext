@@ -1,0 +1,8 @@
+# Only for TRAINING / exporting the model locally (Colab installs its own).
+# The server does NOT need these: it runs the exported .onnx model with onnxruntime.
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-ml.txt
+-r requirements.txt
+torch>=2.4
+timm>=1.0
+onnx>=1.16

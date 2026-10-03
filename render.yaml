@@ -1,0 +1,36 @@
+# Render Blueprint: New + > Blueprint > pick this repo. Then set GEMINI_API_KEY in the dashboard.
+services:
+  - type: web
+    name: gramtext-api
+    runtime: python
+    plan: free            # free sleeps after 15 min idle (first request then takes ~50 s)
+    rootDir: backend
+    # Also pre-downloads the text-detector weights so the first scan after a deploy is fast.
+    buildCommand: pip install -r requirements.txt && python -c "from onnxtr.models import detection_predictor; detection_predictor('db_mobilenet_v3_large')"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: GEMINI_API_KEY
+        sync: false       # secret: enter it in the Render dashboard, never in git
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: GEMINI_FALLBACK_MODELS
+        value: gemini-flash-latest,gemini-3.8-flash
+      - key: GEMINI_THINKING
+        value: low
+      - key: ONNXTR_CACHE_DIR      # keep detector weights inside the project (survives build -> run)
+        value: /opt/render/project/src/backend/.cache/onnxtr
+      - key: OCR_ENGINE
+        value: auto
+      # CORS: lets the Vercel web app call this API (production + preview URLs of a
+      # Vercel project named "gramtext...") and local dev. Add a custom domain to FRONTEND_ORIGINS.
+      - key: FRONTEND_ORIGIN_REGEX
+        value: 'https://gramtext(-[a-z0-9-]+)?\.vercel\.app|https?://(localhost|127\.0\.0\.1)(:\d+)?'
+      - key: TTS_TLD
+        value: co.in
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: TTS_MAX_CHARS
+        value: "1500"
