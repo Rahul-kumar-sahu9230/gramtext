@@ -13,6 +13,7 @@ import com.gramtext.app.data.ImagePrep
 import com.gramtext.app.data.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +68,7 @@ class GramViewModel(app: Application) : AndroidViewModel(app) {
     /** Bumped by the Stop button: audio still arriving for an older read is dropped. */
     private val liveGeneration = AtomicInteger(0)
     private var liveJob: Job? = null
+    private var serverJob: Job? = null
     private var lastSpoken = ""
 
     private val _state = MutableStateFlow(
@@ -86,10 +88,18 @@ class GramViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun checkServer(url: String = prefs.serverUrl) {
+        serverJob?.cancel() // a newer check (e.g. a new URL from Settings) replaces the old one
         _state.update { it.copy(server = ServerStatus.CHECKING) }
-        viewModelScope.launch {
-            val ok = api.health(url)
-            _state.update { it.copy(server = if (ok) ServerStatus.ONLINE else ServerStatus.OFFLINE) }
+        serverJob = viewModelScope.launch {
+            // Render's free plan sleeps when idle and takes ~50 s to wake, so keep trying for a while.
+            repeat(8) {
+                if (api.health(url)) {
+                    _state.update { it.copy(server = ServerStatus.ONLINE) }
+                    return@launch
+                }
+                delay(2_000)
+            }
+            _state.update { it.copy(server = ServerStatus.OFFLINE) }
         }
     }
 

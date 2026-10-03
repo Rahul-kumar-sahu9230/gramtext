@@ -12,12 +12,12 @@ android {
         applicationId = "com.gramtext.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
-        // Default backend. Local testing: the laptop's Wi-Fi IP. For the deployed server build with
-        //   gradlew assembleRelease -PapiBaseUrl=https://gramtext-api.onrender.com
+        versionCode = 3
+        versionName = "1.2"
+        // Default backend: the Render deployment (render.yaml service "gramtext-api").
+        // Local testing against the laptop:  gradlew assembleDebug -PapiBaseUrl=http://<laptop-IP>:8000
         // It can also be changed inside the app (Settings -> Server address) without a rebuild.
-        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://10.131.87.80:8000"
+        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://gramtext-api.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
