@@ -52,7 +52,7 @@ git branch -M main; git remote add origin https://github.com/<you>/gramtext.git;
 1. **New + → Blueprint** → choose the repo. It reads `render.yaml` (root dir `backend`, Python 3.12.8).
 2. Enter **GEMINI_API_KEY** when asked (or under Environment). Deploy.
 3. Open `https://<service>.onrender.com/api/health`. It should show `"status":"healthy"`.
-4. The APK uses `https://gramtext-api.onrender.com` by default. If Render gave your service a different URL, rebuild the APK with it (section 5).
+4. The APK uses `https://gramtext.onrender.com` by default. If Render gave your service a different URL, rebuild the APK with it (section 5).
 - **Free plan:** 512 MB RAM, which is enough for Gemini + gTTS. It sleeps after 15 min idle, so the first request then takes about 50 s (the app shows "checking" and keeps retrying meanwhile). Optional: a free pinger such as cron-job.org calling `/api/health` every 10 min keeps it awake; the free 750 h/month covers one service.
 - **Metrics:** Render's disk is temporary, so `/api/metrics` resets on every deploy or restart.
 - **Our STR model:** it runs as ONNX (onnxruntime + onnxtr, no PyTorch), using about 280 MB, so it fits the free plan.
@@ -69,7 +69,7 @@ git branch -M main; git remote add origin https://github.com/<you>/gramtext.git;
 ```powershell
 cd android
 $env:JAVA_HOME = "$HOME\.jdks\jdk-17.0.20.1+1"     # or Android Studio's bundled JDK
-.\gradlew.bat assembleDebug                                          # default: https://gramtext-api.onrender.com
+.\gradlew.bat assembleDebug                                          # default: https://gramtext.onrender.com
 .\gradlew.bat assembleDebug -PapiBaseUrl=https://<service>.onrender.com  # if Render gave another URL
 .\gradlew.bat assembleDebug -PapiBaseUrl=http://<laptop-IP>:8000        # local backend for testing
 ```

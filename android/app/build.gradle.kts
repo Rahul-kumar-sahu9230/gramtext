@@ -14,10 +14,10 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "1.2"
-        // Default backend: the Render deployment (render.yaml service "gramtext-api").
+        // Default backend: the Render deployment https://gramtext.onrender.com (Render service "gramtext").
         // Local testing against the laptop:  gradlew assembleDebug -PapiBaseUrl=http://<laptop-IP>:8000
         // It can also be changed inside the app (Settings -> Server address) without a rebuild.
-        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://gramtext-api.onrender.com"
+        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://gramtext.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

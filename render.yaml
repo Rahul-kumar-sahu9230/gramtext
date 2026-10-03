@@ -1,7 +1,7 @@
 # Render Blueprint: New + > Blueprint > pick this repo. Then set GEMINI_API_KEY in the dashboard.
 services:
   - type: web
-    name: gramtext-api
+    name: gramtext
     runtime: python
     plan: free            # free sleeps after 15 min idle (first request then takes ~50 s)
     rootDir: backend
